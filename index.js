@@ -2,10 +2,34 @@
  * Module dependencies.
  */
 
-const EventEmitter = require('events').EventEmitter;
-const spawn = require('child_process').spawn;
-const path = require('path');
-const fs = require('fs');
+import { EventEmitter } from 'https://deno.land/std/node/events.ts'
+import * as path from 'https://deno.land/std/path/mod.ts'
+import * as _fs from 'https://deno.land/std/fs/mod.ts'
+import * as _process from 'https://deno.land/std/node/process.ts'
+
+const spawn = (command, args) => {
+  return Deno.run({
+    cmd: args && args.length ? [command, ...args] : [command]
+  })
+}
+
+const fs = {
+  ..._fs,
+  realpathSync: Deno.realpathSync
+}
+
+const process = {
+  ..._process,
+  execPath: _process.execPath || Deno.execPath(),
+  execArgv: _process.execArgv || [],
+  stdout: _process.stdout || {
+    columns: 80,
+    write(str) {
+        Deno.stderr.writeSync(new TextEncoder().encode(str))
+    }
+  },
+  exit: Deno.exit
+}
 
 // @ts-check
 
@@ -672,6 +696,7 @@ class Command extends EventEmitter {
       throw new Error('first parameter to parse must be array or undefined');
     }
     parseOptions = parseOptions || {};
+    parseOptions.from = parseOptions.from || 'deno';
 
     // Default to using process.argv
     if (argv === undefined) {
@@ -701,6 +726,7 @@ class Command extends EventEmitter {
         }
         break;
       case 'user':
+      case 'deno':
         userArgs = argv.slice(0);
         break;
       default:
@@ -1590,21 +1616,6 @@ class Command extends EventEmitter {
 };
 
 /**
- * Expose the root command.
- */
-
-exports = module.exports = new Command();
-exports.program = exports; // More explicit access to global command.
-
-/**
- * Expose classes
- */
-
-exports.Command = Command;
-exports.Option = Option;
-exports.CommanderError = CommanderError;
-
-/**
  * Camel-case the given `flag`
  *
  * @param {string} flag
@@ -1753,4 +1764,14 @@ function incrementNodeInspectorPort(args) {
     }
     return result;
   });
+}
+
+/**
+ * Expose classes
+ */
+
+export {
+  Command,
+  Option,
+  CommanderError
 }
